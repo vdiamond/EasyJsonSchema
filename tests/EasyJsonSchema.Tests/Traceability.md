@@ -1,0 +1,108 @@
+# Test traceability
+
+EasyJsonSchema specification v21, section 11. T-11 and T-28 are retired and are not implemented. Each active T-ID has a test method whose name starts with `Tnn_`.
+
+| Test | Method prefix | Requirements and rules |
+|---|---|---|
+| T-1 | `T01_` | FR-1 |
+| T-2 | `T02_` | FR-3, FR-12, D16 |
+| T-3 | `T03_` | FR-5, FR-12, D9 |
+| T-4 | `T04_` | FR-6, FR-12, D12 |
+| T-5 | `T05_` | FR-15, S12 |
+| T-6 | `T06_` | FR-8, FR-3, D13, D16 |
+| T-7 | `T07_` | FR-16, D5, S4 |
+| T-8 | `T08_` | FR-7, D6 |
+| T-9 | `T09_` | FR-9, D14 |
+| T-10 | `T10_` | FR-19, FR-13, FR-17 |
+| T-12 | `T12_` | FR-11, FR-15, D15, S19 |
+| T-13 | `T13_` | FR-4, FR-17, D8, D16 |
+| T-14 | `T14_` | FR-10, FR-18, D11 |
+| T-15 | `T15_` | FR-2, FR-12, D4 |
+| T-16 | `T16_` | FR-9, FR-12, D14 |
+| T-17 | `T17_` | FR-10, FR-12, D11 |
+| T-18 | `T18_` | FR-12, D9, D13 |
+| T-19 | `T19_` | FR-13, FR-15, FR-23. Re-runs T-55–T-62, T-65–T-68, T-76–T-81, T-87, T-88, T-93, T-102 |
+| T-20 | `T20_` | FR-19. Re-runs T-85 and T-86 |
+| T-21 | `T21_` | NFR-1, FR-12, D17 |
+| T-22 | `T22_` | FR-21, FR-12, D10 |
+| T-23 | `T23_` | FR-3, FR-4, FR-18, D8 |
+| T-24 | `T24_` | Section 4.2, FR-7, FR-15, D6, S11 |
+| T-25 | `T25_` | FR-22, D7 |
+| T-26 | `T26_` | FR-12, section 6, D2, D3 |
+| T-27 | `T27_` | FR-19 |
+| T-29 | `T29_` | NFR-6 |
+| T-30 | `T30_` | Section 6, both `ValidateJsonObject` overloads |
+| T-31 | `T31_` | FR-6, D12 |
+| T-32 | `T32_` | FR-10, FR-18, D11 |
+| T-33 | `T33_` | FR-11, FR-15, S16 |
+| T-34 | `T34_` | Section 6. Re-runs the failure cases in T-2–T-9, T-15–T-18, T-21, T-22, T-24–T-26, T-36, T-39, T-42–T-46, T-48, T-51, T-52, T-5, T-33, T-55–T-71, T-74–T-81, T-85–T-89, T-91, T-92, T-93, T-94, T-95, T-97, T-100–T-102 |
+| T-35 | `T35_` | FR-19, section 4.2 |
+| T-36 | `T36_` | FR-21, FR-12, D10 |
+| T-37 | `T37_` | FR-19 |
+| T-38 | `T38_` | FR-19 |
+| T-39 | `T39_` | Section 4.2, FR-8, FR-11, D15 |
+| T-40 | `T40_` | Section 4.2, FR-4, FR-8, D8 |
+| T-41 | `T41_` | Section 4.2, FR-4, FR-11, D15 |
+| T-42 | `T42_` | Section 4.2, FR-7, FR-22, D6, D7 |
+| T-43 | `T43_` | FR-16, D5 |
+| T-44 | `T44_` | FR-3, FR-12, D16 |
+| T-45 | `T45_` | Section 4.2, FR-12, NFR-1, D17 |
+| T-46 | `T46_` | FR-12, section 8, D3 |
+| T-47 | `T47_` | Section 6, section 8, D2 |
+| T-48 | `T48_` | FR-5, FR-6, D9, D12 |
+| T-49 | `T49_` | FR-10, FR-18, D11 |
+| T-50 | `T50_` | FR-12 |
+| T-51 | `T51_` | FR-12, section 6, D1 |
+| T-52 | `T52_` | FR-18, FR-12, section 6 |
+| T-53 | `T53_` | FR-13 |
+| T-54 | `T54_` | FR-13, FR-16, S4 |
+| T-55 | `T55_` | FR-15, S11 |
+| T-56 | `T56_` | FR-15, S12 |
+| T-57 | `T57_` | FR-15, S13 |
+| T-58 | `T58_` | FR-15, S14 |
+| T-59 | `T59_` | FR-15, S15 |
+| T-60 | `T60_` | FR-11, FR-15, S16 |
+| T-61 | `T61_` | FR-15, S18 |
+| T-62 | `T62_` | FR-11, FR-15, S19 |
+| T-63 | `T63_` | FR-16, S4 |
+| T-64 | `T64_` | FR-15, FR-16, S16 |
+| T-65 | `T65_` | FR-15, S5 |
+| T-66 | `T66_` | FR-12, FR-15, FR-23, S5 |
+| T-67 | `T67_` | FR-12, FR-15, S10 |
+| T-68 | `T68_` | FR-11, FR-15, S9 |
+| T-69 | `T69_` | FR-13, FR-12, S2 |
+| T-70 | `T70_` | FR-15, S12, S11 |
+| T-71 | `T71_` | FR-15, S10, S11 |
+| T-72 | `T72_` | FR-13, FR-16, FR-17 |
+| T-73 | `T73_` | FR-19, FR-13 |
+| T-74 | `T74_` | FR-3, FR-13, D8, D16 |
+| T-75 | `T75_` | Section 6, FR-12, S1 |
+| T-76 | `T76_` | FR-12, FR-15, S20 |
+| T-77 | `T77_` | FR-12, FR-15, FR-23 |
+| T-78 | `T78_` | FR-12, FR-15, FR-22, S8 |
+| T-79 | `T79_` | FR-12, FR-15, FR-23, S6 |
+| T-80 | `T80_` | FR-15, section 6, S2 |
+| T-81 | `T81_` | FR-12, FR-15, FR-23, S7 |
+| T-82 | `T82_` | FR-19 |
+| T-83 | `T83_` | FR-19 |
+| T-84 | `T84_` | FR-19 |
+| T-85 | `T85_` | FR-19, FR-12 |
+| T-86 | `T86_` | FR-19, FR-16 |
+| T-87 | `T87_` | FR-15, FR-12, FR-23, S17 |
+| T-88 | `T88_` | FR-15, FR-6, S12 |
+| T-89 | `T89_` | FR-6, FR-9, D12, D14 |
+| T-90 | `T90_` | FR-19, FR-6, FR-18 |
+| T-91 | `T91_` | FR-17 |
+| T-92 | `T92_` | FR-19, FR-15, FR-23 |
+| T-93 | `T93_` | FR-12, FR-15, FR-23, S5, S7, S10, S19 |
+| T-94 | `T94_` | FR-12, FR-15, FR-23 |
+| T-95 | `T95_` | NFR-2, FR-6, D12 |
+| T-96 | `T96_` | FR-18 |
+| T-97 | `T97_` | FR-18, section 8 |
+| T-98 | `T98_` | FR-18, FR-6 |
+| T-99 | `T99_` | FR-19, FR-6, FR-13 |
+| T-100 | `T100_` | FR-16, FR-4, FR-13, D5, D8, S4, S7 |
+| T-101 | `T101_` | FR-19, FR-15 |
+| T-102 | `T102_` | FR-13, FR-5, FR-23, S6 |
+
+`Nfr5_HotPathBenchmark_IsReported` reports the hot-path measurement for NFR-5. It is not a pass/fail gate. `ScalarRangesAndMetadata_AreAccepted` covers the rest of the section 5.2 numeric ranges and the optional schema fields. `Section11TestMethods_ExistForActiveTestIds` checks that every active T-ID has a method.
