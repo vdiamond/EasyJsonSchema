@@ -63,6 +63,26 @@ public sealed class DeserializeTests
     }
 
     [Fact]
+    public void Fr18_ZonelessExtremes_StayUnspecified()
+    {
+        var schema = Check.Load(Schemas.Created);
+        AssertUnspecified(schema, "9999-12-31T23:59:59.9999999", DateTime.MaxValue.Ticks);
+        AssertUnspecified(schema, "0001-01-01T00:00:00", DateTime.MinValue.Ticks);
+    }
+
+    [Fact]
+    public void Fr17_JsonNull_ReturnsTrueWithANullValue()
+    {
+        Assert.True(Check.Service.DeserializeEasyJsonSchema("null", out var schema, out var error));
+        Assert.Null(schema);
+        Assert.Equal(string.Empty, error);
+
+        Assert.True(Check.Service.Deserialize<Models.Stored.User>("null", out var value, out error));
+        Assert.Null(value);
+        Assert.Equal(string.Empty, error);
+    }
+
+    [Fact]
     public void T49_DateTimeZones_KeepTheSpecifiedKind()
     {
         var schema = Check.Load(Schemas.Created);
@@ -187,6 +207,19 @@ public sealed class DeserializeTests
         Check.Data(schema, """{"Status":"active"}""", false, "Status: not in enum");
     }
 
+    #region private
+
+    private static void AssertUnspecified(SchemaDocument schema, string text, long ticks)
+    {
+        var json = "{\"created\":\"" + text + "\"}";
+        Check.Data(schema, json, true);
+        Assert.True(Check.Service.Deserialize<WithCreated>(json, out var value, out var error), error);
+        Assert.NotNull(value);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(DateTimeKind.Unspecified, value.Created.Kind);
+        Assert.Equal(ticks, value.Created.Ticks);
+    }
+
     private static void AssertDate(SchemaDocument schema, string text, DateTimeKind kind, int hour, int minute, int second)
     {
         var json = "{\"created\":\"" + text + "\"}";
@@ -216,4 +249,6 @@ public sealed class DeserializeTests
         Assert.Null(schema);
         Assert.Equal("$: no JSON provided", error);
     }
+
+    #endregion
 }

@@ -13,15 +13,15 @@ internal static class SchemaValidator
         try
         {
             var reader = new Utf8JsonReader(utf8);
-            if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+            if (!reader.Read())
             {
-                if (!reader.TokenType.Equals(JsonTokenType.StartObject) && reader.TokenType != JsonTokenType.None)
-                {
-                    error = Messages.Expected("$", JsonKinds.Object, JsonKinds.Of(reader.TokenType));
-                    return false;
-                }
-
                 error = Messages.MalformedJson;
+                return false;
+            }
+
+            if (reader.TokenType != JsonTokenType.StartObject)
+            {
+                error = Messages.Expected("$", JsonKinds.Object, JsonKinds.Of(reader.TokenType));
                 return false;
             }
 
@@ -38,6 +38,22 @@ internal static class SchemaValidator
 
     // Definitions at level 4 fail. The root object is level 0 and is not a definition.
     private const int MaximumDefinitionLevel = 3;
+
+    private const string NameField = "name";
+
+    private const string TypeField = "type";
+
+    private const string RequiredField = "required";
+
+    private const string TitleField = "title";
+
+    private const string DescriptionField = "description";
+
+    private const string MetaField = "$meta";
+
+    private const string EnumField = "enum";
+
+    private const string PropertiesField = "properties";
 
     private static bool ReadRoot(ref Utf8JsonReader reader, out string error)
     {
@@ -91,41 +107,28 @@ internal static class SchemaValidator
                 return false;
             }
 
-            switch (field)
+            if (field is TitleField or DescriptionField or MetaField)
             {
-                case "title":
-                case "description":
-                case "$meta":
+                if (reader.TokenType != JsonTokenType.String)
                 {
-                    if (reader.TokenType != JsonTokenType.String)
-                    {
-                        error = Messages.Expected(SchemaPaths.RootField(field), SchemaTypes.String, JsonKinds.Of(reader.TokenType));
-                        return false;
-                    }
-
-                    break;
-                }
-                case "properties":
-                {
-                    if (reader.TokenType != JsonTokenType.StartArray)
-                    {
-                        error = Messages.Expected(SchemaPaths.RootField(field), SchemaTypes.ObjectArray, JsonKinds.Of(reader.TokenType));
-                        return false;
-                    }
-
-                    if (!ReadPropertiesArray(ref reader, childLevel: 1, parentChain: string.Empty, isRoot: true, out _, out error))
-                    {
-                        return false;
-                    }
-
-                    sawProperties = true;
-                    break;
-                }
-                default:
-                {
-                    error = Messages.MalformedJson;
+                    error = Messages.Expected(SchemaPaths.RootField(field), SchemaTypes.String, JsonKinds.Of(reader.TokenType));
                     return false;
                 }
+            }
+            else if (field == PropertiesField)
+            {
+                if (reader.TokenType != JsonTokenType.StartArray)
+                {
+                    error = Messages.Expected(SchemaPaths.RootField(field), SchemaTypes.ObjectArray, JsonKinds.Of(reader.TokenType));
+                    return false;
+                }
+
+                if (!ReadPropertiesArray(ref reader, childLevel: 1, parentChain: string.Empty, isRoot: true, out _, out error))
+                {
+                    return false;
+                }
+
+                sawProperties = true;
             }
         }
 
@@ -135,9 +138,9 @@ internal static class SchemaValidator
             return false;
         }
 
-        if (!sawProperties)
+            if (!sawProperties)
         {
-            error = Messages.Problem(SchemaPaths.RootField("properties"), Messages.Required);
+            error = Messages.Problem(SchemaPaths.RootField(PropertiesField), Messages.Required);
             return false;
         }
 
@@ -268,89 +271,71 @@ internal static class SchemaValidator
                 return false;
             }
 
-            switch (field)
+            if (field == NameField)
             {
-                case "name":
+                if (reader.TokenType != JsonTokenType.String)
                 {
-                    if (reader.TokenType != JsonTokenType.String)
-                    {
-                        error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.String, JsonKinds.Of(reader.TokenType));
-                        return false;
-                    }
-
-                    nameValue = reader.GetString() ?? string.Empty;
-                    break;
-                }
-                case "type":
-                {
-                    if (reader.TokenType != JsonTokenType.String)
-                    {
-                        error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.String, JsonKinds.Of(reader.TokenType));
-                        return false;
-                    }
-
-                    typeValue = reader.GetString() ?? string.Empty;
-                    break;
-                }
-                case "required":
-                {
-                    if (reader.TokenType is not JsonTokenType.True and not JsonTokenType.False)
-                    {
-                        error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.Boolean, JsonKinds.Of(reader.TokenType));
-                        return false;
-                    }
-
-                    break;
-                }
-                case "title":
-                case "description":
-                case "$meta":
-                {
-                    if (reader.TokenType != JsonTokenType.String)
-                    {
-                        error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.String, JsonKinds.Of(reader.TokenType));
-                        return false;
-                    }
-
-                    break;
-                }
-                case "enum":
-                {
-                    if (reader.TokenType != JsonTokenType.StartArray)
-                    {
-                        error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.StringArray, JsonKinds.Of(reader.TokenType));
-                        return false;
-                    }
-
-                    if (!ReadEnumArray(ref reader, chain, out enumValues, out error))
-                    {
-                        return false;
-                    }
-
-                    sawEnum = true;
-                    break;
-                }
-                case "properties":
-                {
-                    if (reader.TokenType != JsonTokenType.StartArray)
-                    {
-                        error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.ObjectArray, JsonKinds.Of(reader.TokenType));
-                        return false;
-                    }
-
-                    if (!ReadPropertiesArray(ref reader, level + 1, chain, isRoot: false, out propertyCount, out error))
-                    {
-                        return false;
-                    }
-
-                    sawProperties = true;
-                    break;
-                }
-                default:
-                {
-                    error = Messages.MalformedJson;
+                    error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.String, JsonKinds.Of(reader.TokenType));
                     return false;
                 }
+
+                nameValue = reader.GetString() ?? string.Empty;
+            }
+            else if (field == TypeField)
+            {
+                if (reader.TokenType != JsonTokenType.String)
+                {
+                    error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.String, JsonKinds.Of(reader.TokenType));
+                    return false;
+                }
+
+                typeValue = reader.GetString() ?? string.Empty;
+            }
+            else if (field == RequiredField)
+            {
+                if (reader.TokenType is not JsonTokenType.True and not JsonTokenType.False)
+                {
+                    error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.Boolean, JsonKinds.Of(reader.TokenType));
+                    return false;
+                }
+            }
+            else if (field is TitleField or DescriptionField or MetaField)
+            {
+                if (reader.TokenType != JsonTokenType.String)
+                {
+                    error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.String, JsonKinds.Of(reader.TokenType));
+                    return false;
+                }
+            }
+            else if (field == EnumField)
+            {
+                if (reader.TokenType != JsonTokenType.StartArray)
+                {
+                    error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.StringArray, JsonKinds.Of(reader.TokenType));
+                    return false;
+                }
+
+                if (!ReadEnumArray(ref reader, chain, out enumValues, out error))
+                {
+                    return false;
+                }
+
+                sawEnum = true;
+            }
+            else if (field == PropertiesField)
+            {
+                if (reader.TokenType != JsonTokenType.StartArray)
+                {
+                    error = Messages.Expected(SchemaPaths.Field(chain, field), SchemaTypes.ObjectArray, JsonKinds.Of(reader.TokenType));
+                    return false;
+                }
+
+                if (!ReadPropertiesArray(ref reader, level + 1, chain, isRoot: false, out propertyCount, out error))
+                {
+                    return false;
+                }
+
+                sawProperties = true;
             }
         }
 
@@ -362,37 +347,37 @@ internal static class SchemaValidator
 
         if (nameValue is null)
         {
-            error = Messages.Problem(SchemaPaths.Field(chain, "name"), Messages.Required);
+            error = Messages.Problem(SchemaPaths.Field(chain, NameField), Messages.Required);
             return false;
         }
 
         if (typeValue is null)
         {
-            error = Messages.Problem(SchemaPaths.Field(chain, "type"), Messages.Required);
+            error = Messages.Problem(SchemaPaths.Field(chain, TypeField), Messages.Required);
             return false;
         }
 
         if (!SchemaTypes.IsKnown(typeValue))
         {
-            error = Messages.Problem(SchemaPaths.Field(chain, "type"), Messages.UnknownType);
+            error = Messages.Problem(SchemaPaths.Field(chain, TypeField), Messages.UnknownType);
             return false;
         }
 
         if (sawEnum && !SchemaTypes.AllowsEnum(typeValue))
         {
-            error = Messages.Problem(SchemaPaths.Field(chain, "enum"), Messages.EnumOnlyOnString);
+            error = Messages.Problem(SchemaPaths.Field(chain, EnumField), Messages.EnumOnlyOnString);
             return false;
         }
 
         if (sawEnum && enumValues!.Count == 0)
         {
-            error = Messages.Problem(SchemaPaths.Field(chain, "enum"), Messages.EnumMustNotBeEmpty);
+            error = Messages.Problem(SchemaPaths.Field(chain, EnumField), Messages.EnumMustNotBeEmpty);
             return false;
         }
 
         if (sawEnum && HasDuplicate(enumValues!))
         {
-            error = Messages.Problem(SchemaPaths.Field(chain, "enum"), Messages.DuplicateEnumValue);
+            error = Messages.Problem(SchemaPaths.Field(chain, EnumField), Messages.DuplicateEnumValue);
             return false;
         }
 
@@ -411,13 +396,13 @@ internal static class SchemaValidator
 
         if (!SchemaNames.IsValid(nameValue))
         {
-            error = Messages.Problem(SchemaPaths.Field(chain, "name"), Messages.InvalidName);
+            error = Messages.Problem(SchemaPaths.Field(chain, NameField), Messages.InvalidName);
             return false;
         }
 
         if (ContainsOrdinal(siblings, nameValue))
         {
-            error = Messages.Problem(SchemaPaths.Field(chain, "name"), Messages.DuplicateName);
+            error = Messages.Problem(SchemaPaths.Field(chain, NameField), Messages.DuplicateName);
             return false;
         }
 
@@ -486,7 +471,7 @@ internal static class SchemaValidator
                 return null;
             }
 
-            var isName = reader.ValueTextEquals("name"u8);
+            var isName = reader.ValueTextEquals(NameField);
             if (!reader.Read())
             {
                 return null;
@@ -522,12 +507,12 @@ internal static class SchemaValidator
 
     private static bool IsRootField(string field)
     {
-        return field is "title" or "description" or "$meta" or "properties";
+        return field is TitleField or DescriptionField or MetaField or PropertiesField;
     }
 
     private static bool IsDefinitionField(string field)
     {
-        return field is "name" or "type" or "required" or "title" or "description" or "$meta" or "enum" or "properties";
+        return field is NameField or TypeField or RequiredField or TitleField or DescriptionField or MetaField or EnumField or PropertiesField;
     }
 
     private static bool ContainsOrdinal(List<string> values, string candidate)

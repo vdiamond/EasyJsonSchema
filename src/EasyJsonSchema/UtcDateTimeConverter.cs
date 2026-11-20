@@ -8,17 +8,29 @@ internal sealed class UtcDateTimeConverter : JsonConverter<DateTime>
 {
     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        if (reader.TokenType != JsonTokenType.String || !reader.TryGetDateTimeOffset(out var offset))
+        if (reader.TokenType != JsonTokenType.String)
         {
             throw new JsonException("The JSON value is not a date-time.");
         }
 
+        // A value with no zone is not an offset. TryGetDateTimeOffset would treat it as local
+        // time and reject the DateTime extremes on one side of UTC.
         if (HasZone(reader.ValueSpan))
         {
+            if (!reader.TryGetDateTimeOffset(out var offset))
+            {
+                throw new JsonException("The JSON value is not a date-time.");
+            }
+
             return DateTime.SpecifyKind(offset.UtcDateTime, DateTimeKind.Utc);
         }
 
-        return DateTime.SpecifyKind(offset.DateTime, DateTimeKind.Unspecified);
+        if (!reader.TryGetDateTime(out var value))
+        {
+            throw new JsonException("The JSON value is not a date-time.");
+        }
+
+        return DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
     }
 
     public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)

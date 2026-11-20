@@ -22,6 +22,11 @@ internal static class DataValidator
     // Objects at level 3 fail. Arrays do not add a level, so the reader depth is not used.
     private const int MaximumObjectLevel = 2;
 
+    private const int MaximumPathSegments = 12;
+
+    [ThreadStatic]
+    private static PathSegment[]? t_pathSegments;
+
     private static bool ValidateCore(CompiledSchema schema, ReadOnlySpan<byte> utf8, out string error)
     {
         var reader = new Utf8JsonReader(utf8);
@@ -37,7 +42,7 @@ internal static class DataValidator
             return false;
         }
 
-        if (!ReadObject(ref reader, schema.Properties, level: 0, parentPath: string.Empty, out error))
+        if (!ReadObject(ref reader, schema.Properties, level: 0, DataPath.Root(), out error))
         {
             return false;
         }
@@ -56,7 +61,7 @@ internal static class DataValidator
         ref Utf8JsonReader reader,
         CompiledProperty[] properties,
         int level,
-        string parentPath,
+        DataPath path,
         out string error)
     {
         var keyCount = 0;
@@ -76,7 +81,7 @@ internal static class DataValidator
             {
                 if (keyCount == 0)
                 {
-                    error = Messages.Problem(DataPaths.Object(parentPath), Messages.EmptyObjectNotAllowed);
+                    error = Messages.Problem(path.Format(), Messages.EmptyObjectNotAllowed);
                     return false;
                 }
 
@@ -84,8 +89,7 @@ internal static class DataValidator
                 {
                     if (properties[index].Required && !seen[index])
                     {
-                        var requiredPath = DataPaths.Property(parentPath, properties[index].Name);
-                        error = Messages.Problem(requiredPath, Messages.Required);
+                        error = Messages.Problem(path.FormatProperty(properties[index].Name), Messages.Required);
                         return false;
                     }
                 }
@@ -104,16 +108,14 @@ internal static class DataValidator
             var match = FindProperty(ref reader, properties);
             if (match >= 0 && seen[match])
             {
-                var duplicatePath = DataPaths.Property(parentPath, properties[match].Name);
-                error = Messages.Problem(duplicatePath, Messages.DuplicateProperty);
+                error = Messages.Problem(path.FormatProperty(properties[match].Name), Messages.DuplicateProperty);
                 return false;
             }
 
             if (match < 0)
             {
                 var dataName = reader.GetString() ?? string.Empty;
-                var additionalPath = DataPaths.Property(parentPath, dataName);
-                error = Messages.Problem(additionalPath, Messages.AdditionalPropertiesNotAllowed);
+                error = Messages.Problem(path.FormatProperty(dataName), Messages.AdditionalPropertiesNotAllowed);
                 return false;
             }
 
@@ -125,7 +127,7 @@ internal static class DataValidator
             }
 
             var property = properties[match];
-            if (!ValidateValue(ref reader, property, level, parentPath, property.Name, out error))
+            if (!ValidateValue(ref reader, property, level, path, property.Name, out error))
             {
                 return false;
             }
@@ -149,7 +151,7 @@ internal static class DataValidator
         ref Utf8JsonReader reader,
         CompiledProperty property,
         int level,
-        string parentPath,
+        DataPath path,
         string name,
         out string error)
     {
@@ -157,7 +159,7 @@ internal static class DataValidator
         {
             if (property.Required)
             {
-                error = Messages.Problem(DataPaths.Property(parentPath, name), Messages.NullNotAllowed);
+                error = Messages.Problem(path.FormatProperty(name), Messages.NullNotAllowed);
                 return false;
             }
 
@@ -168,7 +170,7 @@ internal static class DataValidator
         // An object at level 3 fails before the type check, including when the schema expected another type.
         if (reader.TokenType == JsonTokenType.StartObject && level >= MaximumObjectLevel)
         {
-            error = Messages.Problem(DataPaths.Property(parentPath, name), Messages.NestingTooDeep);
+            error = Messages.Problem(path.FormatProperty(name), Messages.NestingTooDeep);
             return false;
         }
 
@@ -176,11 +178,11 @@ internal static class DataValidator
         {
             case SchemaValueKind.Array:
             {
-                return ValidateArray(ref reader, property, level, DataPaths.Property(parentPath, name), out error);
+                return ValidateArray(ref reader, property, level, path.ChildProperty(name), out error);
             }
             case SchemaValueKind.Object:
             {
-                return ValidateObjectValue(ref reader, property, level, DataPaths.Property(parentPath, name), out error);
+                return ValidateObjectValue(ref reader, property, level, path.ChildProperty(name), out error);
             }
             case SchemaValueKind.Boolean:
             case SchemaValueKind.Integer:
@@ -193,8 +195,7 @@ internal static class DataValidator
                     property.Kind,
                     property.TypeName,
                     property.EnumUtf8,
-                    parentPath,
-                    name,
+                    new ScalarLocation(path, name),
                     out error);
             }
             default:
@@ -208,12 +209,12 @@ internal static class DataValidator
         ref Utf8JsonReader reader,
         CompiledProperty property,
         int level,
-        string path,
+        DataPath path,
         out string error)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
         {
-            error = Messages.Expected(path, SchemaTypes.Object, JsonKinds.Of(reader.TokenType));
+            error = Messages.Expected(path.Format(), SchemaTypes.Object, JsonKinds.Of(reader.TokenType));
             return false;
         }
 
@@ -224,12 +225,12 @@ internal static class DataValidator
         ref Utf8JsonReader reader,
         CompiledProperty property,
         int level,
-        string path,
+        DataPath path,
         out string error)
     {
         if (reader.TokenType != JsonTokenType.StartArray)
         {
-            error = Messages.Expected(path, property.TypeName, JsonKinds.Of(reader.TokenType));
+            error = Messages.Expected(path.Format(), property.TypeName, JsonKinds.Of(reader.TokenType));
             return false;
         }
 
@@ -250,13 +251,13 @@ internal static class DataValidator
 
             if (reader.TokenType == JsonTokenType.Null)
             {
-                error = Messages.Problem(DataPaths.Index(path, index), Messages.NullNotAllowed);
+                error = Messages.Problem(path.FormatIndex(index), Messages.NullNotAllowed);
                 return false;
             }
 
             if (reader.TokenType == JsonTokenType.StartObject && level >= MaximumObjectLevel)
             {
-                error = Messages.Problem(DataPaths.Index(path, index), Messages.NestingTooDeep);
+                error = Messages.Problem(path.FormatIndex(index), Messages.NestingTooDeep);
                 return false;
             }
 
@@ -264,46 +265,28 @@ internal static class DataValidator
             {
                 if (reader.TokenType != JsonTokenType.StartObject)
                 {
-                    error = Messages.Expected(DataPaths.Index(path, index), SchemaTypes.Object, JsonKinds.Of(reader.TokenType));
+                    error = Messages.Expected(path.FormatIndex(index), SchemaTypes.Object, JsonKinds.Of(reader.TokenType));
                     return false;
                 }
 
-                if (!ReadObject(ref reader, property.Children ?? [], level + 1, DataPaths.Index(path, index), out error))
+                if (!ReadObject(ref reader, property.Children ?? [], level + 1, path.ChildIndex(index), out error))
                 {
                     return false;
                 }
             }
-            else if (!ValidateScalar(ref reader, property.ItemKind, property.ItemTypeName, property.EnumUtf8, path, index, out error))
+            else if (!ValidateScalar(
+                ref reader,
+                property.ItemKind,
+                property.ItemTypeName,
+                property.EnumUtf8,
+                new ScalarLocation(path, index),
+                out error))
             {
                 return false;
             }
 
             index++;
         }
-    }
-
-    private static bool ValidateScalar(
-        ref Utf8JsonReader reader,
-        SchemaValueKind kind,
-        string typeName,
-        byte[][]? enumUtf8,
-        string parentPath,
-        string name,
-        out string error)
-    {
-        return ValidateScalar(ref reader, kind, typeName, enumUtf8, new ScalarLocation(parentPath, name), out error);
-    }
-
-    private static bool ValidateScalar(
-        ref Utf8JsonReader reader,
-        SchemaValueKind kind,
-        string typeName,
-        byte[][]? enumUtf8,
-        string parentPath,
-        int index,
-        out string error)
-    {
-        return ValidateScalar(ref reader, kind, typeName, enumUtf8, new ScalarLocation(parentPath, index), out error);
     }
 
     private static bool ValidateScalar(
@@ -491,7 +474,7 @@ internal static class DataValidator
 
     private readonly struct ScalarLocation
     {
-        internal ScalarLocation(string parent, string name)
+        internal ScalarLocation(DataPath parent, string name)
         {
             _parent = parent;
             _name = name;
@@ -499,7 +482,7 @@ internal static class DataValidator
             _isIndex = false;
         }
 
-        internal ScalarLocation(string parent, int index)
+        internal ScalarLocation(DataPath parent, int index)
         {
             _parent = parent;
             _name = null;
@@ -511,21 +494,138 @@ internal static class DataValidator
         {
             if (_isIndex)
             {
-                return DataPaths.Index(_parent, _index);
+                return _parent.FormatIndex(_index);
             }
 
-            return DataPaths.Property(_parent, _name ?? string.Empty);
+            return _parent.FormatProperty(_name ?? string.Empty);
         }
 
         #region private
 
-        private readonly string _parent;
+        private readonly DataPath _parent;
 
         private readonly string? _name;
 
         private readonly int _index;
 
         private readonly bool _isIndex;
+
+        #endregion
+    }
+
+    private readonly struct PathSegment
+    {
+        internal PathSegment(string? name, int index, bool isIndex)
+        {
+            Name = name;
+            Index = index;
+            IsIndex = isIndex;
+        }
+
+        internal string? Name { get; }
+
+        internal int Index { get; }
+
+        internal bool IsIndex { get; }
+    }
+
+    private readonly struct DataPath
+    {
+        internal static DataPath Root()
+        {
+            var segments = t_pathSegments;
+            if (segments is null)
+            {
+                segments = new PathSegment[MaximumPathSegments];
+                t_pathSegments = segments;
+            }
+
+            return new DataPath(segments, 0);
+        }
+
+        internal DataPath ChildProperty(string name)
+        {
+            return Push(new PathSegment(name, 0, false));
+        }
+
+        internal DataPath ChildIndex(int index)
+        {
+            return Push(new PathSegment(null, index, true));
+        }
+
+        internal string Format()
+        {
+            if (_count == 0)
+            {
+                return "$";
+            }
+
+            return FormatRange(_count);
+        }
+
+        internal string FormatProperty(string name)
+        {
+            if (_count == 0)
+            {
+                return name;
+            }
+
+            return FormatRange(_count) + "." + name;
+        }
+
+        internal string FormatIndex(int index)
+        {
+            return FormatRange(_count) + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
+        }
+
+        #region private
+
+        private readonly PathSegment[] _segments;
+
+        private readonly int _count;
+
+        private DataPath(PathSegment[] segments, int count)
+        {
+            _segments = segments;
+            _count = count;
+        }
+
+        private DataPath Push(PathSegment segment)
+        {
+            if (_count >= _segments.Length)
+            {
+                throw new InvalidOperationException("The schema was not validated before use.");
+            }
+
+            _segments[_count] = segment;
+            return new DataPath(_segments, _count + 1);
+        }
+
+        private string FormatRange(int count)
+        {
+            var builder = new StringBuilder();
+            for (var index = 0; index < count; index++)
+            {
+                var segment = _segments[index];
+                if (segment.IsIndex)
+                {
+                    builder.Append('[');
+                    builder.Append(segment.Index.ToString(CultureInfo.InvariantCulture));
+                    builder.Append(']');
+                }
+                else
+                {
+                    if (index > 0)
+                    {
+                        builder.Append('.');
+                    }
+
+                    builder.Append(segment.Name);
+                }
+            }
+
+            return builder.ToString();
+        }
 
         #endregion
     }

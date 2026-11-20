@@ -266,6 +266,18 @@ public sealed class DataValidationTests
         Assert.Equal("$: no JSON provided", error);
         Assert.False(Check.Service.ValidateJsonObject(schema, new byte[] { 0xEF, 0xBB, 0xBF, 0x20, 0x09 }, out error));
         Assert.Equal("$: no JSON provided", error);
+
+        Check.Data(schema, "\uFEFF\uFEFF{\"a\":1}", false, "$: malformed JSON");
+        var doubled = new byte[body.Length + 6];
+        doubled[0] = 0xEF;
+        doubled[1] = 0xBB;
+        doubled[2] = 0xBF;
+        doubled[3] = 0xEF;
+        doubled[4] = 0xBB;
+        doubled[5] = 0xBF;
+        body.CopyTo(doubled, 6);
+        Assert.False(Check.Service.ValidateJsonObject(schema, doubled, out error));
+        Assert.Equal("$: malformed JSON", error);
     }
 
     [Fact]
@@ -335,6 +347,8 @@ public sealed class DataValidationTests
             "age/required: null not allowed");
     }
 
+    #region private
+
     private static void AssertFloat<T>(string schemaJson, string literal, string typeName)
     {
         var accepted = true;
@@ -356,4 +370,6 @@ public sealed class DataValidationTests
 
         Check.Data(Check.Load(schemaJson), json, false, "n: out of range for " + typeName);
     }
+
+    #endregion
 }

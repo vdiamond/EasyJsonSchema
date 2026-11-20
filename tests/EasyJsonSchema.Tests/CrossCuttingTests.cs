@@ -226,10 +226,41 @@ public sealed class CrossCuttingTests
         var nanoseconds = stopwatch.Elapsed.TotalMilliseconds * 1_000_000d / iterations;
         var bytesPerCall = allocated / (double)iterations;
         Console.WriteLine(
-            "NFR-5 hot path: {0} iterations, {1:F1} ns/op, {2:F1} allocated bytes/op, schema cached, UTF-8 span.",
+            "NFR-5 flat schema: {0} iterations, {1:F1} ns/op, {2:F1} allocated bytes/op, schema cached, UTF-8 span.",
             iterations,
             nanoseconds,
             bytesPerCall);
+
+        const string nestedSchemaJson = """{"properties":[{"name":"items","type":"Object[]","required":true,"properties":[{"name":"sku","type":"String","required":true},{"name":"tags","type":"String[]"},{"name":"detail","type":"Object","required":true,"properties":[{"name":"city","type":"String","required":true}]}]}]}""";
+        var nestedSchema = Check.Load(nestedSchemaJson);
+        var nestedJson = """{"items":[{"sku":"a","tags":["x","y"],"detail":{"city":"Reykjavik"}},{"sku":"b","tags":["z"],"detail":{"city":"Oslo"}}]}"""u8.ToArray();
+        for (var index = 0; index < 2_000; index++)
+        {
+            Assert.True(Check.Service.ValidateJsonObject(nestedSchema, nestedJson, out _));
+        }
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        stopwatch.Restart();
+        for (var index = 0; index < iterations; index++)
+        {
+            if (!Check.Service.ValidateJsonObject(nestedSchema, nestedJson, out var nestedError))
+            {
+                throw new InvalidOperationException(nestedError);
+            }
+        }
+
+        stopwatch.Stop();
+        allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        var nestedNanoseconds = stopwatch.Elapsed.TotalMilliseconds * 1_000_000d / iterations;
+        var nestedBytes = allocated / (double)iterations;
+        Console.WriteLine(
+            "NFR-5 nested object arrays: {0} iterations, {1:F1} ns/op, {2:F1} allocated bytes/op, schema cached, UTF-8 span.",
+            iterations,
+            nestedNanoseconds,
+            nestedBytes);
         Assert.True(stopwatch.Elapsed.TotalMilliseconds >= 0);
     }
 
@@ -284,6 +315,8 @@ public sealed class CrossCuttingTests
             Assert.Contains(names, name => name.StartsWith(prefix, StringComparison.Ordinal));
         }
     }
+
+    #region private
 
     private static Dictionary<string, SchemaDocument> LoadCoreSchemas()
     {
@@ -345,4 +378,6 @@ public sealed class CrossCuttingTests
         builder.Append(error);
         builder.Append('\n');
     }
+
+    #endregion
 }

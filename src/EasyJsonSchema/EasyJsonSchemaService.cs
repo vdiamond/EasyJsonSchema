@@ -20,7 +20,7 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
         }
 
         var bytes = Encoding.UTF8.GetBytes(prepared);
-        return ValidateJsonObject(schema, bytes, out error);
+        return ValidatePrepared(schema, bytes, out error);
     }
 
     /// <inheritdoc />
@@ -37,8 +37,7 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
             return false;
         }
 
-        var compiled = SchemaCompiler.GetCompiled(schema);
-        return DataValidator.Validate(compiled, body, out error);
+        return ValidatePrepared(schema, body, out error);
     }
 
     /// <inheritdoc />
@@ -136,4 +135,14 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
     {
         return GenerateEasyJsonSchema(typeof(T), out errorOrSchema);
     }
+
+    #region private
+
+    private static bool ValidatePrepared(EasyJsonSchema schema, ReadOnlySpan<byte> utf8, out string error)
+    {
+        var compiled = SchemaCompiler.GetCompiled(schema);
+        return DataValidator.Validate(compiled, utf8, out error);
+    }
+
+    #endregion
 }
