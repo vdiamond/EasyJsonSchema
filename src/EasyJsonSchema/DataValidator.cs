@@ -592,11 +592,6 @@ internal static class DataValidator
 
         private DataPath Push(PathSegment segment)
         {
-            if (_count >= _segments.Length)
-            {
-                throw new InvalidOperationException("The schema was not validated before use.");
-            }
-
             _segments[_count] = segment;
             return new DataPath(_segments, _count + 1);
         }

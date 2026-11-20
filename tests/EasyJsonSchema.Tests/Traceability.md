@@ -1,6 +1,6 @@
 # Test traceability
 
-EasyJsonSchema specification v21, section 11. T-11 and T-28 are retired and are not implemented. Each active T-ID has a test method whose name starts with `Tnn_`.
+EasyJsonSchema specification v22, section 11. T-11 and T-28 are retired and are not implemented. Each active T-ID, through T-110, has a test method whose name starts with `Tnn_`.
 
 | Test | Method prefix | Requirements and rules |
 |---|---|---|
@@ -35,7 +35,7 @@ EasyJsonSchema specification v21, section 11. T-11 and T-28 are retired and are 
 | T-31 | `T31_` | FR-6, D12 |
 | T-32 | `T32_` | FR-10, FR-18, D11 |
 | T-33 | `T33_` | FR-11, FR-15, S16 |
-| T-34 | `T34_` | Section 6. Re-runs the failure cases in T-2–T-9, T-15–T-18, T-21, T-22, T-24–T-26, T-36, T-39, T-42–T-46, T-48, T-51, T-52, T-5, T-33, T-55–T-71, T-74–T-81, T-85–T-89, T-91, T-92, T-93, T-94, T-95, T-97, T-100–T-102 |
+| T-34 | `T34_` | Section 6. Re-runs the failure cases in T-2–T-9, T-15–T-18, T-21, T-22, T-24–T-26, T-36, T-39, T-42–T-46, T-48, T-51, T-52, T-5, T-33, T-55–T-71, T-74–T-81, T-85–T-89, T-91, T-92, T-93, T-94, T-95, T-97, T-100–T-110 |
 | T-35 | `T35_` | FR-19, section 4.2 |
 | T-36 | `T36_` | FR-21, FR-12, D10 |
 | T-37 | `T37_` | FR-19 |
@@ -104,5 +104,13 @@ EasyJsonSchema specification v21, section 11. T-11 and T-28 are retired and are 
 | T-100 | `T100_` | FR-16, FR-4, FR-13, D5, D8, S4, S7 |
 | T-101 | `T101_` | FR-19, FR-15 |
 | T-102 | `T102_` | FR-13, FR-5, FR-23, S6 |
+| T-103 | `T103_` | FR-19, section 5.2. Concrete user class is `Object`; abstract classes, interfaces, delegates, and `System` classes are unsupported |
+| T-104 | `T104_` | FR-19, FR-18. Rank-1 arrays and `List<byte>` map to the array form; `byte[]` is unsupported |
+| T-105 | `T105_` | FR-19. Types outside the section 5.2 table are unsupported |
+| T-106 | `T106_` | FR-19, FR-7. `[JsonIgnore]` Always and WhenReading, and static properties, are excluded |
+| T-107 | `T107_` | FR-19, section 6. `$: type is null` |
+| T-108 | `T108_` | FR-17, FR-18. JSON literal `null` cannot be deserialized |
+| T-109 | `T109_` | FR-18, section 6. `InvalidOperationException` maps to `cannot deserialize to <TypeName>` |
+| T-110 | `T110_` | 4.1, D2, D3, S1. JSON whitespace only; U+00A0 is malformed JSON |
 
-`Nfr5_HotPathBenchmark_IsReported` reports the hot-path measurement for NFR-5. It is not a pass/fail gate. `ScalarRangesAndMetadata_AreAccepted` covers the rest of the section 5.2 numeric ranges and the optional schema fields. `Section11TestMethods_ExistForActiveTestIds` checks that every active T-ID has a method.
+`Nfr5_HotPathBenchmark_IsReported` reports the hot-path measurement for NFR-5 and asserts 0 allocated bytes per operation on both schemas. `ScalarRangesAndMetadata_AreAccepted` covers the rest of the section 5.2 numeric ranges and the optional schema fields. `Section11TestMethods_ExistForActiveTestIds` checks that every active T-ID has a method.

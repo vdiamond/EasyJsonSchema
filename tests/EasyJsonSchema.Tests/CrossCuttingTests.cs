@@ -1,10 +1,17 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
+using Xunit.Abstractions;
 
 namespace EasyJsonSchema.Tests;
 
 public sealed class CrossCuttingTests
 {
+    public CrossCuttingTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     [Fact]
     public async Task T29_OneCachedSchema_IsSafeAcrossThreads()
     {
@@ -131,6 +138,16 @@ public sealed class CrossCuttingTests
         deserialized.T52_Deserialize_ReportsInputAndSerializerFaults();
         deserialized.T91_DeserializeEasyJsonSchema_DoesNotValidate();
         deserialized.T97_EnumProperties_ReadNamesAndRejectNumbers();
+
+        var v22 = new SpecV22Tests();
+        v22.T103_ObjectSupport_AcceptsUserClassesAndRejectsTheRest();
+        v22.T104_Arrays_MapExceptByteArray();
+        v22.T105_TypesOutsideTheTable_AreUnsupported();
+        v22.T106_JsonIgnoreAndStaticMembers_AreSelectedByTheReadRules();
+        v22.T107_NullType_ReturnsTypeIsNull();
+        v22.T108_JsonNull_CannotDeserialize();
+        v22.T109_DuplicateJsonNames_MapInvalidOperationToCannotDeserialize();
+        v22.T110_Whitespace_IsJsonWhitespaceOnly();
     }
 
     [Fact]
@@ -208,11 +225,12 @@ public sealed class CrossCuttingTests
         }
 
         const int iterations = 20_000;
+        var stopwatch = new Stopwatch();
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
         var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
-        var stopwatch = Stopwatch.StartNew();
+        stopwatch.Start();
         for (var index = 0; index < iterations; index++)
         {
             if (!Check.Service.ValidateJsonObject(schema, json, out var error))
@@ -225,11 +243,15 @@ public sealed class CrossCuttingTests
         var allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
         var nanoseconds = stopwatch.Elapsed.TotalMilliseconds * 1_000_000d / iterations;
         var bytesPerCall = allocated / (double)iterations;
-        Console.WriteLine(
+        var flatReport = string.Format(
+            CultureInfo.InvariantCulture,
             "NFR-5 flat schema: {0} iterations, {1:F1} ns/op, {2:F1} allocated bytes/op, schema cached, UTF-8 span.",
             iterations,
             nanoseconds,
             bytesPerCall);
+        _output.WriteLine(flatReport);
+        Console.WriteLine(flatReport);
+        Assert.Equal(0, allocated);
 
         const string nestedSchemaJson = """{"properties":[{"name":"items","type":"Object[]","required":true,"properties":[{"name":"sku","type":"String","required":true},{"name":"tags","type":"String[]"},{"name":"detail","type":"Object","required":true,"properties":[{"name":"city","type":"String","required":true}]}]}]}""";
         var nestedSchema = Check.Load(nestedSchemaJson);
@@ -256,12 +278,15 @@ public sealed class CrossCuttingTests
         allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
         var nestedNanoseconds = stopwatch.Elapsed.TotalMilliseconds * 1_000_000d / iterations;
         var nestedBytes = allocated / (double)iterations;
-        Console.WriteLine(
+        var nestedReport = string.Format(
+            CultureInfo.InvariantCulture,
             "NFR-5 nested object arrays: {0} iterations, {1:F1} ns/op, {2:F1} allocated bytes/op, schema cached, UTF-8 span.",
             iterations,
             nestedNanoseconds,
             nestedBytes);
-        Assert.True(stopwatch.Elapsed.TotalMilliseconds >= 0);
+        _output.WriteLine(nestedReport);
+        Console.WriteLine(nestedReport);
+        Assert.Equal(0, allocated);
     }
 
     [Fact]
@@ -304,7 +329,7 @@ public sealed class CrossCuttingTests
             .Select(method => method.Name)
             .ToList();
 
-        for (var id = 1; id <= 102; id++)
+        for (var id = 1; id <= 110; id++)
         {
             if (id is 11 or 28)
             {
@@ -317,6 +342,8 @@ public sealed class CrossCuttingTests
     }
 
     #region private
+
+    private readonly ITestOutputHelper _output;
 
     private static Dictionary<string, SchemaDocument> LoadCoreSchemas()
     {

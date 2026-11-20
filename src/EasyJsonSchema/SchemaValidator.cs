@@ -138,7 +138,7 @@ internal static class SchemaValidator
             return false;
         }
 
-            if (!sawProperties)
+        if (!sawProperties)
         {
             error = Messages.Problem(SchemaPaths.RootField(PropertiesField), Messages.Required);
             return false;

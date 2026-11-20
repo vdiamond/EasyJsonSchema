@@ -2,7 +2,7 @@
 
 EasyJsonSchema is a .NET class library that validates a JSON object against a small schema format. It is aimed at the request path that checks a body before storing the original bytes.
 
-The behavior is defined by **EasyJsonSchema specification v21** (approved 2026-11-20). That document is not in this repository.
+The behavior is defined by **EasyJsonSchema specification v22** (approved 2026-11-20). That document is not in this repository.
 
 ## Target
 

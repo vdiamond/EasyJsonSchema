@@ -16,7 +16,7 @@ internal static class JsonInput
             json = json[1..];
         }
 
-        if (string.IsNullOrWhiteSpace(json))
+        if (json.Length == 0 || IsJsonWhitespace(json.AsSpan()))
         {
             prepared = string.Empty;
             error = Messages.NoJsonProvided;
@@ -35,7 +35,7 @@ internal static class JsonInput
             utf8 = utf8[3..];
         }
 
-        if (IsWhitespaceOnly(utf8))
+        if (IsJsonWhitespace(utf8))
         {
             prepared = default;
             error = Messages.NoJsonProvided;
@@ -57,16 +57,24 @@ internal static class JsonInput
             && utf8[2] == 0xBF;
     }
 
-    private static bool IsWhitespaceOnly(ReadOnlySpan<byte> utf8)
+    private static bool IsJsonWhitespace(ReadOnlySpan<char> text)
+    {
+        foreach (var value in text)
+        {
+            if (value is not (' ' or '\t' or '\n' or '\r'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsJsonWhitespace(ReadOnlySpan<byte> utf8)
     {
         foreach (var value in utf8)
         {
-            if (value > 0x7F)
-            {
-                return Encoding.UTF8.GetString(utf8).AsSpan().IsWhiteSpace();
-            }
-
-            if (!char.IsWhiteSpace((char)value))
+            if (value is not (0x20 or 0x09 or 0x0A or 0x0D))
             {
                 return false;
             }

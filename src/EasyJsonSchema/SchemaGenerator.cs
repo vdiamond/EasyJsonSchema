@@ -266,8 +266,8 @@ internal static class SchemaGenerator
         return null;
     }
 
-    // Section 5.2 maps a class to Object. T-85 requires System.IO.Stream to be unsupported.
-    // Interim rule: concrete classes outside the BCL map to Object. See the spec questions.
+    // Section 5.2: Object is a concrete user class. Abstract classes, interfaces, delegates,
+    // and classes in the System or Microsoft namespaces are unsupported.
     private static bool IsDataClass(Type type)
     {
         if (!type.IsClass || type.IsArray || type == typeof(object))
@@ -302,7 +302,14 @@ internal static class SchemaGenerator
     {
         if (type.IsArray && type.GetArrayRank() == 1)
         {
-            element = type.GetElementType()!;
+            var item = type.GetElementType()!;
+            if (item == typeof(byte))
+            {
+                element = type;
+                return false;
+            }
+
+            element = item;
             return true;
         }
 
@@ -344,6 +351,17 @@ internal static class SchemaGenerator
         return true;
     }
 
+    private static bool IsIgnoredWhenReading(PropertyInfo property)
+    {
+        var attribute = property.GetCustomAttribute<JsonIgnoreAttribute>();
+        if (attribute is null)
+        {
+            return false;
+        }
+
+        return attribute.Condition is JsonIgnoreCondition.Always or JsonIgnoreCondition.WhenReading;
+    }
+
     private static string GetJsonName(PropertyInfo property)
     {
         var attribute = property.GetCustomAttribute<JsonPropertyNameAttribute>();
@@ -370,7 +388,9 @@ internal static class SchemaGenerator
     {
         return type
             .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Where(property => property.GetIndexParameters().Length == 0 && property.GetMethod is { IsPublic: true })
+            .Where(property => property.GetIndexParameters().Length == 0
+                && property.GetMethod is { IsPublic: true }
+                && !IsIgnoredWhenReading(property))
             .OrderBy(property => property.DeclaringType == type ? 1 : 0)
             .ThenBy(property => property.MetadataToken)
             .ToList();

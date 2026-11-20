@@ -71,18 +71,6 @@ public sealed class DeserializeTests
     }
 
     [Fact]
-    public void Fr17_JsonNull_ReturnsTrueWithANullValue()
-    {
-        Assert.True(Check.Service.DeserializeEasyJsonSchema("null", out var schema, out var error));
-        Assert.Null(schema);
-        Assert.Equal(string.Empty, error);
-
-        Assert.True(Check.Service.Deserialize<Models.Stored.User>("null", out var value, out error));
-        Assert.Null(value);
-        Assert.Equal(string.Empty, error);
-    }
-
-    [Fact]
     public void T49_DateTimeZones_KeepTheSpecifiedKind()
     {
         var schema = Check.Load(Schemas.Created);

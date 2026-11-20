@@ -56,6 +56,12 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
             return false;
         }
 
+        if (IsJsonNull(bytes))
+        {
+            error = Messages.CannotDeserialize(typeof(T).Name);
+            return false;
+        }
+
         try
         {
             value = JsonSerializer.Deserialize<T>(prepared, SerializerOptions.Data);
@@ -69,6 +75,12 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
             return false;
         }
         catch (NotSupportedException)
+        {
+            value = default;
+            error = Messages.CannotDeserialize(typeof(T).Name);
+            return false;
+        }
+        catch (InvalidOperationException)
         {
             value = default;
             error = Messages.CannotDeserialize(typeof(T).Name);
@@ -104,6 +116,12 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
             return false;
         }
 
+        if (IsJsonNull(bytes))
+        {
+            error = Messages.CannotDeserialize(nameof(EasyJsonSchema));
+            return false;
+        }
+
         try
         {
             schema = JsonSerializer.Deserialize<EasyJsonSchema>(prepared, SerializerOptions.Schema);
@@ -122,11 +140,23 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
             error = Messages.CannotDeserialize(nameof(EasyJsonSchema));
             return false;
         }
+        catch (InvalidOperationException)
+        {
+            schema = null;
+            error = Messages.CannotDeserialize(nameof(EasyJsonSchema));
+            return false;
+        }
     }
 
     /// <inheritdoc />
     public bool GenerateEasyJsonSchema(Type type, out string errorOrSchema)
     {
+        if (type is null)
+        {
+            errorOrSchema = Messages.TypeIsNull;
+            return false;
+        }
+
         return SchemaGenerator.TryGenerate(type, out errorOrSchema);
     }
 
@@ -142,6 +172,12 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
     {
         var compiled = SchemaCompiler.GetCompiled(schema);
         return DataValidator.Validate(compiled, utf8, out error);
+    }
+
+    private static bool IsJsonNull(ReadOnlySpan<byte> utf8)
+    {
+        var reader = new Utf8JsonReader(utf8);
+        return reader.Read() && reader.TokenType == JsonTokenType.Null;
     }
 
     #endregion

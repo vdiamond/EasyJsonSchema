@@ -8,6 +8,8 @@ internal static class Messages
 
     internal const string SchemaIsNull = "$: schema is null";
 
+    internal const string TypeIsNull = "$: type is null";
+
     internal const string UnknownType = "unknown type (types are case-sensitive, e.g. Int32)";
 
     internal const string EnumOnlyOnString = "enum only allowed on String or String[]";
