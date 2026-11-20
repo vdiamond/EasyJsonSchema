@@ -25,8 +25,9 @@ public interface IEasyJsonSchema
 
     /// <summary>
     /// Reads stored JSON into <typeparamref name="T"/>. It does not take a schema and does not validate.
+    /// A JSON literal <c>null</c> returns <see langword="false"/> with <c>$: cannot deserialize to &lt;TypeName&gt;</c>.
     /// </summary>
-    /// <typeparam name="T">The target type.</typeparam>
+    /// <typeparam name="T">The target type. <c>&lt;TypeName&gt;</c> is <c>typeof(T).Name</c>.</typeparam>
     /// <param name="json">The stored JSON text.</param>
     /// <param name="value">The object when reading succeeds; otherwise <c>default</c>.</param>
     /// <param name="error">Empty when reading succeeds; otherwise the error.</param>
@@ -43,15 +44,17 @@ public interface IEasyJsonSchema
 
     /// <summary>
     /// Reads a schema document into <see cref="EasyJsonSchema"/>. It does not validate the schema.
+    /// A JSON literal <c>null</c> returns <see langword="false"/> with <c>$: cannot deserialize to EasyJsonSchema</c>, and <paramref name="schema"/> is <see langword="null"/>.
     /// </summary>
     /// <param name="schemaJson">The schema document text.</param>
-    /// <param name="schema">The schema when reading succeeds.</param>
+    /// <param name="schema">The schema when reading succeeds; otherwise <see langword="null"/>.</param>
     /// <param name="error">Empty when reading succeeds; otherwise the error.</param>
     /// <returns><see langword="true"/> when the document becomes a schema object.</returns>
     bool DeserializeEasyJsonSchema(string schemaJson, out EasyJsonSchema? schema, out string error);
 
     /// <summary>
     /// Builds schema JSON from the public properties of <paramref name="type"/>.
+    /// A null <paramref name="type"/> returns <see langword="false"/> with <c>$: type is null</c>.
     /// </summary>
     /// <param name="type">The type to read.</param>
     /// <param name="errorOrSchema">The schema JSON when generation succeeds; otherwise the error.</param>

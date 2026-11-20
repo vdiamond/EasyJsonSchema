@@ -33,6 +33,14 @@ internal static class SchemaGenerator
 
     private const int FirstDisallowedDefinitionLevel = 4;
 
+    private const string SystemNamespace = "System";
+
+    private const string SystemNamespacePrefix = "System.";
+
+    private const string MicrosoftNamespace = "Microsoft";
+
+    private const string MicrosoftNamespacePrefix = "Microsoft.";
+
     private static bool TryBuildProperties(
         Type type,
         int childDefinitionLevel,
@@ -287,10 +295,10 @@ internal static class SchemaGenerator
 
         var typeNamespace = type.Namespace;
         if (typeNamespace is not null
-            && (typeNamespace == "System"
-                || typeNamespace.StartsWith("System.", StringComparison.Ordinal)
-                || typeNamespace == "Microsoft"
-                || typeNamespace.StartsWith("Microsoft.", StringComparison.Ordinal)))
+            && (typeNamespace == SystemNamespace
+                || typeNamespace.StartsWith(SystemNamespacePrefix, StringComparison.Ordinal)
+                || typeNamespace == MicrosoftNamespace
+                || typeNamespace.StartsWith(MicrosoftNamespacePrefix, StringComparison.Ordinal)))
         {
             return false;
         }
