@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EasyJsonSchema/EasyJsonSchema.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EasyJsonSchema.Tests/EasyJsonSchema.Tests.csproj" />
+  </Folder>
+</Solution>
