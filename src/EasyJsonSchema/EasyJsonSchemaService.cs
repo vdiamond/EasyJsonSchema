@@ -1,7 +1,7 @@
 namespace EasyJsonSchema;
 
 /// <summary>
-/// Validates JSON objects, checks schema documents, deserializes stored JSON, and generates schemas.
+/// Validates JSON objects, checks schema documents, deserializes stored JSON, generates schemas, and writes objects.
 /// </summary>
 public sealed class EasyJsonSchemaService : IEasyJsonSchema
 {
@@ -149,21 +149,21 @@ public sealed class EasyJsonSchemaService : IEasyJsonSchema
     }
 
     /// <inheritdoc />
-    public bool GenerateEasyJsonSchema(Type type, out string errorOrSchema)
+    public bool GenerateEasyJsonSchema(Type type, out string errorOrSchema, bool writeIndented = false)
     {
-        if (type is null)
-        {
-            errorOrSchema = Messages.TypeIsNull;
-            return false;
-        }
-
-        return SchemaGenerator.TryGenerate(type, out errorOrSchema);
+        return SchemaGenerator.TryGenerate(type, writeIndented, out errorOrSchema);
     }
 
     /// <inheritdoc />
-    public bool GenerateEasyJsonSchema<T>(out string errorOrSchema)
+    public bool GenerateEasyJsonSchema<T>(out string errorOrSchema, bool writeIndented = false)
     {
-        return GenerateEasyJsonSchema(typeof(T), out errorOrSchema);
+        return GenerateEasyJsonSchema(typeof(T), out errorOrSchema, writeIndented);
+    }
+
+    /// <inheritdoc />
+    public bool Serialize<T>(T value, out string json, out string error, bool writeIndented = false)
+    {
+        return ObjectSerializer.TrySerialize(value, writeIndented, out json, out error);
     }
 
     #region private

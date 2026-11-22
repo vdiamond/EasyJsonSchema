@@ -1,6 +1,6 @@
 # Test traceability
 
-EasyJsonSchema specification v22, section 11. T-11 and T-28 are retired and are not implemented. Each active T-ID, through T-110, has a test method whose name starts with `Tnn_`.
+EasyJsonSchema specification v23, section 11. T-11 and T-28 are retired and are not implemented. Each active T-ID, through T-127, has a test method whose name starts with `Tnn_`.
 
 | Test | Method prefix | Requirements and rules |
 |---|---|---|
@@ -112,5 +112,22 @@ EasyJsonSchema specification v22, section 11. T-11 and T-28 are retired and are 
 | T-108 | `T108_` | FR-17, FR-18. JSON literal `null` cannot be deserialized |
 | T-109 | `T109_` | FR-18, section 6. `InvalidOperationException` maps to `cannot deserialize to <TypeName>` |
 | T-110 | `T110_` | 4.1, D2, D3, S1. JSON whitespace only; U+00A0 is malformed JSON |
+| T-111 | `T111_` | FR-24, FR-19, FR-13, FR-17. Compact and indented generation |
+| T-112 | `T112_` | FR-24, FR-19. Indented `GenerateEasyJsonSchema(Type)` |
+| T-113 | `T113_` | FR-25, FR-18. Serialize the FR-19 user |
+| T-114 | `T114_` | FR-25, FR-19. Enum member JSON names |
+| T-115 | `T115_` | FR-25, D10. Number and bool formatting |
+| T-116 | `T116_` | FR-25, D11, FR-18. DateTime kinds and local offset |
+| T-117 | `T117_` | FR-25, D14. Arrays and lists |
+| T-118 | `T118_` | FR-25, FR-19. `[JsonIgnore]` conditions are written when FR-19 includes them |
+| T-119 | `T119_` | FR-25, D6. Names and default escaping |
+| T-120 | `T120_` | FR-25, FR-24. Compact and indented object JSON |
+| T-121 | `T121_` | FR-25, 4.1, section 6. Null, non-finite numbers, unnamed enum |
+| T-122 | `T122_` | FR-19. Flags, converter, number handling, and polymorphic types |
+| T-123 | `T123_` | FR-25, D8, D14. Output that fails the generated schema |
+| T-124 | `T124_` | FR-19, FR-25. Collection classes |
+| T-125 | `T125_` | FR-19, FR-25, D6. Public get and set, or init |
+| T-126 | `T126_` | FR-25, FR-19. Serialize uses the generation check |
+| T-127 | `T127_` | D6, D7, FR-7, FR-22. Escaped data keys |
 
-`Nfr5_HotPathBenchmark_IsReported` reports the hot-path measurement for NFR-5 and asserts 0 allocated bytes per operation on both schemas. `ScalarRangesAndMetadata_AreAccepted` covers the rest of the section 5.2 numeric ranges and the optional schema fields. `Section11TestMethods_ExistForActiveTestIds` checks that every active T-ID has a method.
+`Nfr5_HotPathBenchmark_IsReported` reports the hot-path measurement for NFR-5. It is a report, not a pass/fail gate. The success path stays at 0 allocated bytes per operation. `ScalarRangesAndMetadata_AreAccepted` covers the rest of the section 5.2 numeric ranges and the optional schema fields. `Section11TestMethods_ExistForActiveTestIds` checks that every active T-ID has a method.

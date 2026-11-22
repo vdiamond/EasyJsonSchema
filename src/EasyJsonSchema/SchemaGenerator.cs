@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Reflection;
 using System.Text.Json.Nodes;
 
@@ -5,8 +6,27 @@ namespace EasyJsonSchema;
 
 internal static class SchemaGenerator
 {
-    internal static bool TryGenerate(Type type, out string errorOrSchema)
+    internal static bool TryGenerate(Type type, bool writeIndented, out string errorOrSchema)
     {
+        if (!TryCreate(type, out var schema, out var error) || schema is null)
+        {
+            errorOrSchema = error;
+            return false;
+        }
+
+        errorOrSchema = WriteSchema(schema, writeIndented);
+        return true;
+    }
+
+    internal static bool TryCreate(Type type, out EasyJsonSchema? schema, out string error)
+    {
+        schema = null;
+        if (type is null)
+        {
+            error = Messages.TypeIsNull;
+            return false;
+        }
+
         var context = new NullabilityInfoContext();
         if (!TryBuildProperties(
             type,
@@ -15,17 +35,16 @@ internal static class SchemaGenerator
             parentIsArray: false,
             context,
             out var properties,
-            out var error))
+            out error))
         {
-            errorOrSchema = error;
             return false;
         }
 
-        var root = new JsonObject
+        schema = new EasyJsonSchema
         {
-            ["properties"] = properties,
+            Properties = properties,
         };
-        errorOrSchema = root.ToJsonString(SerializerOptions.Compact);
+        error = string.Empty;
         return true;
     }
 
@@ -41,17 +60,65 @@ internal static class SchemaGenerator
 
     private const string MicrosoftNamespacePrefix = "Microsoft.";
 
+    private static string WriteSchema(EasyJsonSchema schema, bool writeIndented)
+    {
+        var root = new JsonObject
+        {
+            ["properties"] = WriteProperties(schema.Properties),
+        };
+        var options = writeIndented ? SerializerOptions.Indented : SerializerOptions.Compact;
+        return root.ToJsonString(options);
+    }
+
+    private static JsonArray WriteProperties(List<PropertyDef> properties)
+    {
+        var array = new JsonArray();
+        foreach (var property in properties)
+        {
+            var node = new JsonObject
+            {
+                ["name"] = property.Name,
+                ["type"] = property.Type,
+            };
+
+            if (property.Required)
+            {
+                node["required"] = true;
+            }
+
+            if (property.Enum is not null)
+            {
+                var enumArray = new JsonArray();
+                foreach (var value in property.Enum)
+                {
+                    enumArray.Add(value);
+                }
+
+                node["enum"] = enumArray;
+            }
+
+            if (property.Properties is not null)
+            {
+                node["properties"] = WriteProperties(property.Properties);
+            }
+
+            array.Add(node);
+        }
+
+        return array;
+    }
+
     private static bool TryBuildProperties(
         Type type,
         int childDefinitionLevel,
         string parentChain,
         bool parentIsArray,
         NullabilityInfoContext context,
-        out JsonArray properties,
+        out List<PropertyDef> properties,
         out string error)
     {
         properties = [];
-        var declared = GetProperties(type);
+        var declared = MemberSelection.GetIncludedProperties(type);
         if (declared.Count == 0)
         {
             if (parentChain.Length == 0)
@@ -70,13 +137,13 @@ internal static class SchemaGenerator
         var siblingNames = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < declared.Count; index++)
         {
-            if (!TryBuildProperty(declared[index], childDefinitionLevel, parentChain, index, siblingNames, context, out var node, out error))
+            if (!TryBuildProperty(declared[index], childDefinitionLevel, parentChain, index, siblingNames, context, out var definition, out error))
             {
                 properties = [];
                 return false;
             }
 
-            properties.Add(node);
+            properties.Add(definition);
         }
 
         error = string.Empty;
@@ -90,10 +157,10 @@ internal static class SchemaGenerator
         int index,
         HashSet<string> siblingNames,
         NullabilityInfoContext context,
-        out JsonObject node,
+        out PropertyDef definition,
         out string error)
     {
-        node = [];
+        definition = new PropertyDef();
         var jsonName = GetJsonName(property);
         var nameIsValid = SchemaNames.IsValid(jsonName);
         var element = nameIsValid
@@ -119,7 +186,7 @@ internal static class SchemaGenerator
             return false;
         }
 
-        if (!TryMap(property.PropertyType, out var mapped))
+        if (ChangesWriting(property) || !TryMap(property.PropertyType, out var mapped))
         {
             error = Messages.Problem(chain, Messages.UnsupportedMemberType);
             return false;
@@ -140,7 +207,7 @@ internal static class SchemaGenerator
             enumValues = names;
         }
 
-        JsonArray? children = null;
+        List<PropertyDef>? children = null;
         if (mapped.Kind == MappedKind.Object)
         {
             if (!TryBuildProperties(mapped.ClrType!, definitionLevel + 1, chain, mapped.IsArray, context, out var built, out error))
@@ -151,35 +218,27 @@ internal static class SchemaGenerator
             children = built;
         }
 
-        node = new JsonObject
+        definition = new PropertyDef
         {
-            ["name"] = jsonName,
-            ["type"] = mapped.SchemaType,
+            Name = jsonName,
+            Type = mapped.SchemaType,
+            Required = IsRequired(property, context),
+            Enum = enumValues is null ? null : [.. enumValues],
+            Properties = children,
         };
-
-        if (IsRequired(property, context))
-        {
-            node["required"] = true;
-        }
-
-        if (enumValues is not null)
-        {
-            var enumArray = new JsonArray();
-            foreach (var value in enumValues)
-            {
-                enumArray.Add(value);
-            }
-
-            node["enum"] = enumArray;
-        }
-
-        if (children is not null)
-        {
-            node["properties"] = children;
-        }
 
         error = string.Empty;
         return true;
+    }
+
+    private static bool ChangesWriting(PropertyInfo property)
+    {
+        if (property.GetCustomAttribute<JsonConverterAttribute>() is not null)
+        {
+            return true;
+        }
+
+        return property.GetCustomAttribute<JsonNumberHandlingAttribute>() is not null;
     }
 
     private static bool TryMap(Type propertyType, out MappedType mapped)
@@ -198,6 +257,12 @@ internal static class SchemaGenerator
     {
         if (type.IsEnum)
         {
+            if (type.GetCustomAttribute<FlagsAttribute>() is not null)
+            {
+                mapped = default;
+                return false;
+            }
+
             mapped = new MappedType(MappedKind.Enum, isArray ? SchemaTypes.StringArray : SchemaTypes.String, isArray, type);
             return true;
         }
@@ -211,6 +276,13 @@ internal static class SchemaGenerator
 
         if (IsDataClass(type))
         {
+            if (type.GetCustomAttribute<JsonPolymorphicAttribute>() is not null
+                || type.GetCustomAttribute<JsonDerivedTypeAttribute>() is not null)
+            {
+                mapped = default;
+                return false;
+            }
+
             mapped = new MappedType(MappedKind.Object, isArray ? SchemaTypes.ObjectArray : SchemaTypes.Object, isArray, type);
             return true;
         }
@@ -274,8 +346,8 @@ internal static class SchemaGenerator
         return null;
     }
 
-    // Section 5.2: Object is a concrete user class. Abstract classes, interfaces, delegates,
-    // and classes in the System or Microsoft namespaces are unsupported.
+    // Object is a concrete user class. Abstract classes, interfaces, delegates,
+    // classes in the System or Microsoft namespaces, and collection classes are unsupported.
     private static bool IsDataClass(Type type)
     {
         if (!type.IsClass || type.IsArray || type == typeof(object))
@@ -299,6 +371,12 @@ internal static class SchemaGenerator
                 || typeNamespace.StartsWith(SystemNamespacePrefix, StringComparison.Ordinal)
                 || typeNamespace == MicrosoftNamespace
                 || typeNamespace.StartsWith(MicrosoftNamespacePrefix, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        // JsonSerializer reads and writes a collection class as an array or a dictionary.
+        if (typeof(IEnumerable).IsAssignableFrom(type))
         {
             return false;
         }
@@ -359,17 +437,6 @@ internal static class SchemaGenerator
         return true;
     }
 
-    private static bool IsIgnoredWhenReading(PropertyInfo property)
-    {
-        var attribute = property.GetCustomAttribute<JsonIgnoreAttribute>();
-        if (attribute is null)
-        {
-            return false;
-        }
-
-        return attribute.Condition is JsonIgnoreCondition.Always or JsonIgnoreCondition.WhenReading;
-    }
-
     private static string GetJsonName(PropertyInfo property)
     {
         var attribute = property.GetCustomAttribute<JsonPropertyNameAttribute>();
@@ -390,18 +457,6 @@ internal static class SchemaGenerator
 
         var info = context.Create(property);
         return info.ReadState != NullabilityState.Nullable && info.WriteState != NullabilityState.Nullable;
-    }
-
-    private static List<PropertyInfo> GetProperties(Type type)
-    {
-        return type
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Where(property => property.GetIndexParameters().Length == 0
-                && property.GetMethod is { IsPublic: true }
-                && !IsIgnoredWhenReading(property))
-            .OrderBy(property => property.DeclaringType == type ? 1 : 0)
-            .ThenBy(property => property.MetadataToken)
-            .ToList();
     }
 
     private enum MappedKind

@@ -327,7 +327,7 @@ public sealed class CrossCuttingTests
             .Select(method => method.Name)
             .ToList();
 
-        for (var id = 1; id <= 110; id++)
+        for (var id = 1; id <= 127; id++)
         {
             if (id is 11 or 28)
             {
