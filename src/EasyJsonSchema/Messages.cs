@@ -10,6 +10,8 @@ internal static class Messages
 
     internal const string TypeIsNull = "$: type is null";
 
+    internal const string ValueIsNull = "$: value is null";
+
     internal const string UnknownType = "unknown type (types are case-sensitive, e.g. Int32)";
 
     internal const string EnumOnlyOnString = "enum only allowed on String or String[]";
@@ -45,6 +47,11 @@ internal static class Messages
     internal static string CannotDeserialize(string typeName)
     {
         return "$: cannot deserialize to " + typeName;
+    }
+
+    internal static string CannotSerialize(string typeName)
+    {
+        return "$: cannot serialize " + typeName;
     }
 
     internal static string Problem(string path, string problem)

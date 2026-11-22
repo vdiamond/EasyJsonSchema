@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization.Metadata;
+
 namespace EasyJsonSchema;
 
 internal static class SerializerOptions
@@ -11,7 +13,37 @@ internal static class SerializerOptions
         WriteIndented = false,
     };
 
+    internal static JsonSerializerOptions Indented { get; } = new()
+    {
+        WriteIndented = true,
+        NewLine = "\n",
+    };
+
+    internal static JsonSerializerOptions SerializeCompact { get; } = CreateSerialize(writeIndented: false);
+
+    internal static JsonSerializerOptions SerializeIndented { get; } = CreateSerialize(writeIndented: true);
+
     #region private
+
+    private static JsonSerializerOptions CreateSerialize(bool writeIndented)
+    {
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = writeIndented,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver
+            {
+                Modifiers = { MemberSelection.Apply },
+            },
+        };
+
+        if (writeIndented)
+        {
+            options.NewLine = "\n";
+        }
+
+        options.Converters.Add(new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false));
+        return options;
+    }
 
     private static JsonSerializerOptions CreateData()
     {

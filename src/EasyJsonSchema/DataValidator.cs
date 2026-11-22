@@ -42,7 +42,7 @@ internal static class DataValidator
             return false;
         }
 
-        if (!ReadObject(ref reader, schema.Properties, level: 0, DataPath.Root(), out error))
+        if (!ReadObject(ref reader, schema.Properties, level: 0, DataPath.Root(utf8), out error))
         {
             return false;
         }
@@ -105,17 +105,18 @@ internal static class DataValidator
             }
 
             keyCount++;
+            // Compared after unescaping. The path keeps the name as it was written, escapes included.
+            var nameToken = reader.TokenStartIndex;
             var match = FindProperty(ref reader, properties);
             if (match >= 0 && seen[match])
             {
-                error = Messages.Problem(path.FormatProperty(properties[match].Name), Messages.DuplicateProperty);
+                error = Messages.Problem(path.FormatWrittenProperty(nameToken), Messages.DuplicateProperty);
                 return false;
             }
 
             if (match < 0)
             {
-                var dataName = reader.GetString() ?? string.Empty;
-                error = Messages.Problem(path.FormatProperty(dataName), Messages.AdditionalPropertiesNotAllowed);
+                error = Messages.Problem(path.FormatWrittenProperty(nameToken), Messages.AdditionalPropertiesNotAllowed);
                 return false;
             }
 
@@ -127,7 +128,7 @@ internal static class DataValidator
             }
 
             var property = properties[match];
-            if (!ValidateValue(ref reader, property, level, path, property.Name, out error))
+            if (!ValidateValue(ref reader, property, level, path, nameToken, out error))
             {
                 return false;
             }
@@ -152,14 +153,14 @@ internal static class DataValidator
         CompiledProperty property,
         int level,
         DataPath path,
-        string name,
+        long nameToken,
         out string error)
     {
         if (reader.TokenType == JsonTokenType.Null)
         {
             if (property.Required)
             {
-                error = Messages.Problem(path.FormatProperty(name), Messages.NullNotAllowed);
+                error = Messages.Problem(path.FormatWrittenProperty(nameToken), Messages.NullNotAllowed);
                 return false;
             }
 
@@ -170,7 +171,7 @@ internal static class DataValidator
         // An object at level 3 fails before the type check, including when the schema expected another type.
         if (reader.TokenType == JsonTokenType.StartObject && level >= MaximumObjectLevel)
         {
-            error = Messages.Problem(path.FormatProperty(name), Messages.NestingTooDeep);
+            error = Messages.Problem(path.FormatWrittenProperty(nameToken), Messages.NestingTooDeep);
             return false;
         }
 
@@ -178,11 +179,11 @@ internal static class DataValidator
         {
             case SchemaValueKind.Array:
             {
-                return ValidateArray(ref reader, property, level, path.ChildProperty(name), out error);
+                return ValidateArray(ref reader, property, level, path.ChildProperty(nameToken), out error);
             }
             case SchemaValueKind.Object:
             {
-                return ValidateObjectValue(ref reader, property, level, path.ChildProperty(name), out error);
+                return ValidateObjectValue(ref reader, property, level, path.ChildProperty(nameToken), out error);
             }
             case SchemaValueKind.Boolean:
             case SchemaValueKind.Integer:
@@ -195,7 +196,7 @@ internal static class DataValidator
                     property.Kind,
                     property.TypeName,
                     property.EnumUtf8,
-                    new ScalarLocation(path, name),
+                    new ScalarLocation(path, nameToken),
                     out error);
             }
             default:
@@ -472,12 +473,12 @@ internal static class DataValidator
         return false;
     }
 
-    private readonly struct ScalarLocation
+    private readonly ref struct ScalarLocation
     {
-        internal ScalarLocation(DataPath parent, string name)
+        internal ScalarLocation(DataPath parent, long nameToken)
         {
             _parent = parent;
-            _name = name;
+            _nameToken = nameToken;
             _index = 0;
             _isIndex = false;
         }
@@ -485,7 +486,7 @@ internal static class DataValidator
         internal ScalarLocation(DataPath parent, int index)
         {
             _parent = parent;
-            _name = null;
+            _nameToken = 0;
             _index = index;
             _isIndex = true;
         }
@@ -497,14 +498,14 @@ internal static class DataValidator
                 return _parent.FormatIndex(_index);
             }
 
-            return _parent.FormatProperty(_name ?? string.Empty);
+            return _parent.FormatWrittenProperty(_nameToken);
         }
 
         #region private
 
         private readonly DataPath _parent;
 
-        private readonly string? _name;
+        private readonly long _nameToken;
 
         private readonly int _index;
 
@@ -515,23 +516,23 @@ internal static class DataValidator
 
     private readonly struct PathSegment
     {
-        internal PathSegment(string? name, int index, bool isIndex)
+        internal PathSegment(long nameToken, int index, bool isIndex)
         {
-            Name = name;
+            NameToken = nameToken;
             Index = index;
             IsIndex = isIndex;
         }
 
-        internal string? Name { get; }
+        internal long NameToken { get; }
 
         internal int Index { get; }
 
         internal bool IsIndex { get; }
     }
 
-    private readonly struct DataPath
+    private readonly ref struct DataPath
     {
-        internal static DataPath Root()
+        internal static DataPath Root(ReadOnlySpan<byte> utf8)
         {
             var segments = t_pathSegments;
             if (segments is null)
@@ -540,17 +541,17 @@ internal static class DataValidator
                 t_pathSegments = segments;
             }
 
-            return new DataPath(segments, 0);
+            return new DataPath(utf8, segments, 0);
         }
 
-        internal DataPath ChildProperty(string name)
+        internal DataPath ChildProperty(long nameToken)
         {
-            return Push(new PathSegment(name, 0, false));
+            return Push(new PathSegment(nameToken, 0, false));
         }
 
         internal DataPath ChildIndex(int index)
         {
-            return Push(new PathSegment(null, index, true));
+            return Push(new PathSegment(0, index, true));
         }
 
         internal string Format()
@@ -573,6 +574,17 @@ internal static class DataValidator
             return FormatRange(_count) + "." + name;
         }
 
+        internal string FormatWrittenProperty(long nameToken)
+        {
+            var written = RawName(nameToken);
+            if (_count == 0)
+            {
+                return written;
+            }
+
+            return FormatRange(_count) + "." + written;
+        }
+
         internal string FormatIndex(int index)
         {
             return FormatRange(_count) + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
@@ -580,12 +592,15 @@ internal static class DataValidator
 
         #region private
 
+        private readonly ReadOnlySpan<byte> _utf8;
+
         private readonly PathSegment[] _segments;
 
         private readonly int _count;
 
-        private DataPath(PathSegment[] segments, int count)
+        private DataPath(ReadOnlySpan<byte> utf8, PathSegment[] segments, int count)
         {
+            _utf8 = utf8;
             _segments = segments;
             _count = count;
         }
@@ -593,7 +608,7 @@ internal static class DataValidator
         private DataPath Push(PathSegment segment)
         {
             _segments[_count] = segment;
-            return new DataPath(_segments, _count + 1);
+            return new DataPath(_utf8, _segments, _count + 1);
         }
 
         private string FormatRange(int count)
@@ -615,11 +630,48 @@ internal static class DataValidator
                         builder.Append('.');
                     }
 
-                    builder.Append(segment.Name);
+                    builder.Append(RawName(segment.NameToken));
                 }
             }
 
             return builder.ToString();
+        }
+
+        private string RawName(long tokenStart)
+        {
+            var start = (int)tokenStart;
+            if ((uint)start >= (uint)_utf8.Length || _utf8[start] != (byte)'"')
+            {
+                return string.Empty;
+            }
+
+            var index = start + 1;
+            while (index < _utf8.Length)
+            {
+                var current = _utf8[index];
+                if (current == (byte)'\\')
+                {
+                    if (index + 1 < _utf8.Length && _utf8[index + 1] == (byte)'u')
+                    {
+                        index += 6;
+                    }
+                    else
+                    {
+                        index += 2;
+                    }
+
+                    continue;
+                }
+
+                if (current == (byte)'"')
+                {
+                    return Encoding.UTF8.GetString(_utf8.Slice(start + 1, index - start - 1));
+                }
+
+                index++;
+            }
+
+            return Encoding.UTF8.GetString(_utf8[(start + 1)..]);
         }
 
         #endregion

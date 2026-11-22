@@ -1,7 +1,7 @@
 namespace EasyJsonSchema;
 
 /// <summary>
-/// Validates JSON objects, checks schema documents, deserializes stored JSON, and generates schemas.
+/// Validates JSON objects, checks schema documents, deserializes stored JSON, generates schemas, and writes objects.
 /// </summary>
 public interface IEasyJsonSchema
 {
@@ -58,14 +58,28 @@ public interface IEasyJsonSchema
     /// </summary>
     /// <param name="type">The type to read.</param>
     /// <param name="errorOrSchema">The schema JSON when generation succeeds; otherwise the error.</param>
+    /// <param name="writeIndented"><see langword="false"/> writes compact JSON. <see langword="true"/> indents with two spaces and a line feed.</param>
     /// <returns><see langword="true"/> when generation succeeds.</returns>
-    bool GenerateEasyJsonSchema(Type type, out string errorOrSchema);
+    bool GenerateEasyJsonSchema(Type type, out string errorOrSchema, bool writeIndented = false);
 
     /// <summary>
     /// Builds schema JSON from the public properties of <typeparamref name="T"/>.
     /// </summary>
     /// <typeparam name="T">The type to read.</typeparam>
     /// <param name="errorOrSchema">The schema JSON when generation succeeds; otherwise the error.</param>
+    /// <param name="writeIndented"><see langword="false"/> writes compact JSON. <see langword="true"/> indents with two spaces and a line feed.</param>
     /// <returns><see langword="true"/> when generation succeeds.</returns>
-    bool GenerateEasyJsonSchema<T>(out string errorOrSchema);
+    bool GenerateEasyJsonSchema<T>(out string errorOrSchema, bool writeIndented = false);
+
+    /// <summary>
+    /// Writes <paramref name="value"/> as JSON, with C# enums as names, and checks it against the schema generated for <typeparamref name="T"/>.
+    /// A null value returns <see langword="false"/> with <c>$: value is null</c>. On every failure <paramref name="json"/> is empty.
+    /// </summary>
+    /// <typeparam name="T">The type to write. <c>&lt;TypeName&gt;</c> is <c>typeof(T).Name</c>.</typeparam>
+    /// <param name="value">The object to write.</param>
+    /// <param name="json">The JSON when writing succeeds; otherwise empty.</param>
+    /// <param name="error">Empty when writing succeeds; otherwise the error.</param>
+    /// <param name="writeIndented"><see langword="false"/> writes compact JSON. <see langword="true"/> indents with two spaces and a line feed.</param>
+    /// <returns><see langword="true"/> when the JSON is written and passes the generated schema.</returns>
+    bool Serialize<T>(T value, out string json, out string error, bool writeIndented = false);
 }
