@@ -40,3 +40,7 @@ The class and the namespace share the name `EasyJsonSchema`. Refer to the docume
 `ValidateJsonObject` reads the JSON once and returns the first error. It does not throw for a schema that has already passed `ValidateEasyJsonSchema`. `Deserialize<T>` is for stored JSON and does not validate.
 
 `GenerateEasyJsonSchema` writes compact JSON unless `writeIndented` is true. `Serialize<T>` writes a .NET object as JSON, with C# enums as names, and returns it only when that JSON passes the schema generated for the type.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
