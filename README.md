@@ -4,6 +4,23 @@ EasyJsonSchema is a .NET class library that validates a JSON object against a sm
 
 The behavior is defined by **EasyJsonSchema specification v23** (approved 2026-11-22). That document is not in this repository.
 
+Agent guidance is in [AGENTS.md](AGENTS.md).
+
+## Layout
+
+- `src/EasyJsonSchema/` — class library
+- `tests/EasyJsonSchema.Tests/` — xUnit tests (`Traceability.md` maps specification tests)
+- `EasyJsonSchema.slnx` — solution
+
+## Build and test
+
+Uses the .NET 10 SDK named in `global.json`.
+
+```
+dotnet build EasyJsonSchema.slnx
+dotnet test EasyJsonSchema.slnx
+```
+
 ## Target
 
 - `net10.0`
